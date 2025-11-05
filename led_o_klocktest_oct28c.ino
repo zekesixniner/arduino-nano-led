@@ -112,7 +112,14 @@ void loop() {
 
   // Om jämn timme och jämn minut eller udda timme och udda minut, och det är en ny minut sedan senaste kontrollen
   if ((evenHourAndMinute || oddHourAndMinute) && (now.minute() != lastMinute || now.hour() != lastHour) && !ledOn) {
-    digitalWrite(mosfetPin, HIGH); // Tänd LED-lampan
+    //digitalWrite(mosfetPin, HIGH); // Tänd LED-lampan
+
+    // Dimma upp från 0% till 100% på 2 sekunder
+    for (int brightness = 0; brightness <= 255; brightness++) {
+      analogWrite(mosfetPin, brightness);
+      delay(24); // 255 steg * 8 ms ≈ 6 sekunder
+    }
+
     ledOn = true;
     ledOnTime = now.unixtime(); // Spara tiden när LED-lampan tändes
     Serial.println("LED-lampa tändes!");
@@ -120,15 +127,22 @@ void loop() {
     lastMinute = now.minute(); // Uppdatera senaste minuten
   }
 
-  // Om LED-lampan är tänd och 25 sekunder har passerat, släck den
+  // Om LED-lampan är tänd och 50 sekunder har passerat, släck den
   if (ledOn) {
     DateTime currentTime = rtc.now();
-    if (currentTime.unixtime() - ledOnTime >= 55) {
-      digitalWrite(mosfetPin, LOW); // Släck LED-lampan
+    if (currentTime.unixtime() - ledOnTime >= 45) {
+      //digitalWrite(mosfetPin, LOW); // Släck LED-lampan
+
+// Dimma ner från 100% till 0% på 2 sekunder
+      for (int brightness = 255; brightness >= 0; brightness--) {
+        analogWrite(mosfetPin, brightness);
+        delay(24); // 255 steg * 8 ms ≈ 6 sekunder
+      }
+
       ledOn = false;
-      Serial.println("LED-lampa släcktes efter 55 sekunder.");
+      Serial.println("LED-lampa släcktes efter 45 sekunder.");
     }
   }
 
-  delay(800); // Uppdatera snabbt för att fånga 25-sekundersintervallet
+  delay(800); // Uppdatera snabbt för att fånga 45-sekundersintervallet
 }
