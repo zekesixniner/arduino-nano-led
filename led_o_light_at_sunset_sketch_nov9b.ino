@@ -61,10 +61,10 @@ time_t calculateSunset(int year, int month, int day) {
       tm.Minute = 3;
       break;
     case 11: // November
-      //tm.Hour = 15;
-      //tm.Minute = 1;
-      tm.Hour = 21;
-      tm.Minute = 58;
+//      tm.Hour = 15;
+//      tm.Minute = 1;
+      tm.Hour = 20;
+      tm.Minute = 05;
       break;
     case 12: // December
       tm.Hour = 14;
@@ -73,6 +73,42 @@ time_t calculateSunset(int year, int month, int day) {
   }
 
   return makeTime(tm);
+}
+
+// Funktion för att kontrollera om det är sommartid (CEST, UTC+2)
+bool isDaylightSavingTime(int year, int month, int day) {
+  // Sommartid i Sverige: sista söndagen i mars till sista söndagen i oktober
+  if (month < 3 || month > 10) return false;
+  if (month > 3 && month < 10) return true;
+
+  // Mars: sista söndagen
+  if (month == 3) {
+    int lastSunday = 31;
+    while (dayOfTheWeek(year, month, lastSunday) != 0) { // 0 = söndag
+      lastSunday--;
+    }
+    if (day >= lastSunday) return true;
+  }
+  // Oktober: sista söndagen
+  else if (month == 10) {
+    int lastSunday = 31;
+    while (dayOfTheWeek(year, month, lastSunday) != 0) { // 0 = söndag
+      lastSunday--;
+    }
+    if (day < lastSunday) return true;
+  }
+
+  return false;
+}
+
+// Funktion för att beräkna veckodag (0=söndag, 1=måndag, etc.)
+int dayOfTheWeek(int y, int m, int d) {
+  if (m < 3) {
+    m += 12;
+    y--;
+  }
+  int h = (d + 13*(m+1)/5 + 2*y + y/4 - y/100 + y/400) % 7;
+  return (h + 6) % 7; // 0 = söndag, 1 = måndag, etc.
 }
 
 void setup() {
@@ -89,32 +125,56 @@ void setup() {
 void loop() {
   DateTime now = rtc.now();
 
-  // Hämta aktuell tid i UTC
-  setTime(now.hour(), now.minute(), now.second(), now.day(), now.month(), now.year());
-  time_t currentTime = now.unixtime();
+  // Hämta aktuell tid i lokal tid (CET/CEST)
+  int currentYear = now.year();
+  int currentMonth = now.month();
+  int currentDay = now.day();
+  int currentHour = now.hour();
+  int currentMinute = now.minute();
+  int currentSecond = now.second();
 
-  // Beräkna solnedgångstiden för idag
-  time_t sunsetTime = calculateSunset(now.year(), now.month(), now.day());
-  time_t targetTime = sunsetTime - 3600; // En timme innan solnedgång
+  // Kontrollera om det är sommartid
+  bool isDST = isDaylightSavingTime(currentYear, currentMonth, currentDay);
+
+  // Justera timmen för UTC (subtrahera 1 för CET, 2 för CEST)
+  int utcHour = currentHour - (isDST ? 2 : 1);
+
+  // Skapa en Unix-tid för aktuell tid i UTC
+  tmElements_t tm;
+  tm.Year = currentYear - 1970;
+  tm.Month = currentMonth;
+  tm.Day = currentDay;
+  tm.Hour = utcHour;
+  tm.Minute = currentMinute;
+  tm.Second = currentSecond;
+  time_t currentTime = makeTime(tm);
+
+  // Beräkna solnedgångstiden för idag (UTC)
+  time_t sunsetTime = calculateSunset(currentYear, currentMonth, currentDay);
+  time_t targetTime = sunsetTime - 3600; // En timme innan solnedgång (UTC)
 
   // Skriv ut tiden och solnedgångstiden för debug
-  Serial.print("Aktuell tid: ");
-  Serial.print(now.hour());
+  Serial.print("Aktuell lokal tid: ");
+  Serial.print(currentHour);
   Serial.print(":");
-  Serial.print(now.minute());
+  Serial.print(currentMinute);
   Serial.print(":");
-  Serial.print(now.second());
-  Serial.print(" | Solnedgång idag: ");
+  Serial.print(currentSecond);
+  Serial.print(" | Aktuell UTC-tid: ");
+  Serial.print(hour(currentTime));
+  Serial.print(":");
+  Serial.print(minute(currentTime));
+  Serial.print(" | Solnedgång idag (UTC): ");
   Serial.print(hour(sunsetTime));
   Serial.print(":");
   Serial.print(minute(sunsetTime));
-  Serial.print(" | Mål för uppdimning: ");
+  Serial.print(" | Mål för uppdimning (UTC): ");
   Serial.print(hour(targetTime));
   Serial.print(":");
   Serial.println(minute(targetTime));
 
-  // Kontrollera om det är dags att börja dimma upp (en timme innan solnedgång)
-  if (!dimmingUp && !ledOn && now.unixtime() >= targetTime && now.unixtime() < sunsetTime) {
+  // Kontrollera om det är dags att börja dimma upp (en timme innan solnedgång, UTC)
+  if (!dimmingUp && !ledOn && currentTime >= targetTime && currentTime < sunsetTime) {
     Serial.println("Börjar dimma upp LED-stripen...");
 
     dimmingUp = true;
@@ -122,7 +182,6 @@ void loop() {
     // Dimma upp från 0% till 100% under 5 minuter
     for (int brightness = 0; brightness <= 255; brightness++) {
       analogWrite(mosfetPin, brightness);
- //     delay(114); // 255 steg * 114 ms ≈ 5 minuter
       delay(14); // 255 steg * 114 ms ≈ 5 minuter
     }
 
@@ -132,9 +191,8 @@ void loop() {
   }
 
   // Kontrollera om det är dags att dimma ner (klockan 22:05 UTC)
-//  if (ledOn && !dimmingDown && now.hour() == 22 && now.minute() == 5) {
-    if (ledOn && !dimmingDown && now.hour() == 21 && now.minute() == 00) {
-  
+//  if (ledOn && !dimmingDown && hour(currentTime) == 22 && minute(currentTime) == 5) {
+  if (ledOn && !dimmingDown && hour(currentTime) == 19 && minute(currentTime) == 10) {
     Serial.println("Börjar dimma ner LED-stripen...");
 
     dimmingDown = true;
@@ -142,7 +200,6 @@ void loop() {
     // Dimma ner från 100% till 0% under 5 minuter
     for (int brightness = 255; brightness >= 0; brightness--) {
       analogWrite(mosfetPin, brightness);
-     // delay(114); // 255 steg * 114 ms ≈ 5 minuter
       delay(14); // 255 steg * 114 ms ≈ 5 minuter
     }
 
@@ -152,6 +209,6 @@ void loop() {
     Serial.println("LED-stripen är släckt.");
   }
 
-  //delay(60000); // Uppdatera varje minut för att minska belastningen
+//  delay(60000); // Uppdatera varje minut för att minska belastningen
   delay(5000); // Uppdatera varje minut för att minska belastningen
 }
