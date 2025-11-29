@@ -62,10 +62,10 @@ time_t calculateSunset(int year, int month, int day) {
     case 11: // November
       tm.Hour = 15;
       tm.Minute = 1;
-      // Ednast för TEST, ta bort denna if-sats i prod
+      // Endast för TEST, ta bort denna if-sats i prod
       if (day == 29) {
       tm.Hour = 13;
-      tm.Minute = 29;
+      tm.Minute = 37;
       }
       break;
     case 12: // December
