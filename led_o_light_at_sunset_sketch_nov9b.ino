@@ -63,12 +63,10 @@ time_t calculateSunset(int year, int month, int day) {
       tm.Hour = 15;
       tm.Minute = 1;
       // Ednast för TEST, ta bort denna if-sats i prod
-      if (day == 23) {
-      tm.Hour = 17;
-      tm.Minute = 14;
+      if (day == 29) {
+      tm.Hour = 13;
+      tm.Minute = 29;
       }
-      //
-      
       break;
     case 12: // December
       tm.Hour = 14;
@@ -183,11 +181,17 @@ void loop() {
 
     dimmingUp = true;
 
+/*
+ Strunt i att dimma upp, för mkt blinkande och inte alls snyggt
     // Dimma upp från 0% till 100% under 30 sekunder
     for (int brightness = 0; brightness <= 255; brightness++) {
       analogWrite(mosfetPin, brightness);
       delay(14); // 255 steg * 14 ms ≈ 3.5 sekunder (för snabb test)
+      //delay(3500); // 255 steg * 14 ms ≈ 3.5 sekunder (för snabb test)
     }
+*/
+//Full macka på en gång:
+analogWrite(mosfetPin, 255);
 
     ledOn = true;
     dimmingUp = false;
@@ -195,24 +199,26 @@ void loop() {
   }
 
   // Kontrollera om det är dags att dimma ner (klockan 22:05 UTC)
-  if (ledOn && !dimmingDown && hour(currentTime) == 22 && minute(currentTime) == 5) {
+  //if (ledOn && !dimmingDown && hour(currentTime) == 22 && minute(currentTime) == 5) {
+  if (ledOn && !dimmingDown && hour(currentTime) == 21 && minute(currentTime) == 5) {
   
     Serial.println("Börjar dimma ner LED-stripen...");
 
     dimmingDown = true;
 
+    /* Bara släck skiten på en gång, inget bjäffs för mkt blinkande annars
     // Dimma ner från 100% till 0% under 30 sekunder
     for (int brightness = 255; brightness >= 0; brightness--) {
       analogWrite(mosfetPin, brightness);
       delay(14); // 255 steg * 14 ms ≈ 3.5 sekunder (för snabb test)
     }
-
+*/
     digitalWrite(mosfetPin, LOW); // Se till att MOSFET:n är helt avstängd
     ledOn = false;
     dimmingDown = false;
     Serial.println("LED-stripen är släckt.");
   }
 
-  //  delay(60000); // Uppdatera varje minut för att minska belastningen
+    //delay(60000); // Uppdatera varje minut för att minska belastningen
   delay(5000); // Uppdatera var 5:e sekund för att minska belastningen
 }
